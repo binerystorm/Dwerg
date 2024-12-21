@@ -71,7 +71,6 @@ class Player:
         if self.jumping:
             self.speed.x += -self.speed.x/25
         self.speed.x = pg.math.clamp(self.speed.x, -0.8,0.8)
-        print(self.speed)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
         self.box.move_ip(*(self.speed*dt))
@@ -113,6 +112,16 @@ def draw_grid(window, size):
 
 
 def main():
+    map_size = Vector2(24, 8)
+    map =  "#####..................."
+    map += "...............####....."
+    map += "........................"
+    map += "........................"
+    map += ".....#######............"
+    map += ".................#####.."
+    map += "........................"
+    map += "########################"
+    map_get_tile = lambda x,y: " " if (not (0 <= x < map_size.x)) and (not (0 <= y < map_size.y)) else map[int(y*map_size.x + x)]
     CELL_SIZE = 64 # pixels
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
@@ -139,6 +148,13 @@ def main():
             player.double_jumping = False
 
         window.fill("black")
+        for x in range(int(map_size.x)):
+            for y in range(int(map_size.y)):
+                if map_get_tile(x,y) == " ":
+                    print("ERROR", x, y)
+                elif map_get_tile(x,y) == "#":
+                    tile = pg.rect.Rect((x*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
+                    pg.draw.rect(window, "blue", tile)
         draw_grid(window, CELL_SIZE)
         player.render()
 
