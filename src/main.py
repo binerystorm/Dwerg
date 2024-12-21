@@ -3,14 +3,26 @@ import pygame as pg
 from pygame.math import Vector2
 
 class Player:
-    def __init__(self):
-        self.box = pg.rect.Rect((500, 250), (32,64))
+    def __init__(self, w, h):
+        self.box = pg.rect.Rect((512,256), (w,h))
         self.speed = Vector2()
         self.force = Vector2()
         self.jumping  = False
 
     def update(self, keys, dt):
-        pass
+        self.force.y += 0.005
+        if keys["w"] and not self.jumping:
+            self.jumping = True
+            self.speed.y += -1.5
+        if keys["d"]:
+            self.force.x += 0.005
+        if keys["a"]:
+            self.force.x += -0.005
+            
+        self.speed += self.force*dt
+        print(self.force, self.speed)
+        self.force.update()
+        self.box.move_ip(*(self.speed*dt))
 
     def render(self):
         pg.draw.rect(pg.display.get_surface(), "red", self.box)
@@ -54,7 +66,7 @@ def main():
     pg.init()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
-    player = Player()
+    player = Player(1*CELL_SIZE,2*CELL_SIZE)
     keys = {
         "w": False,
         "a": False,
@@ -64,8 +76,14 @@ def main():
     while(True):
         # NOTE(gerick): de waarde van keys wordt veranderd
         handle_events(keys)
-        dt = pg.time.get_ticks()
+        dt = clock.get_time()
         player.update(keys, dt)
+
+        if player.box.bottom > window.get_height() - CELL_SIZE:
+            player.box.bottom = window.get_height() - CELL_SIZE
+            player.speed.y = 0
+            player.speed.x += -player.speed.x/10
+            player.jumping = False
 
         window.fill("black")
         draw_grid(window, CELL_SIZE)
