@@ -8,22 +8,58 @@ class Player:
         self.box = pg.rect.Rect((512,256), (w,h))
         self.speed = Vector2()
         self.force = Vector2()
+
+        # TODO(start thinking about whether these flags can be put in a state machine)
         self.jumping  = False
+        self.double_jumping = False
+        self.rolling  = False
+        self.has_rolled = False
+        self.has_jumped = False
+
+        self.rolling_timer = 0
+        self.dir = 1
 
     def update(self, keys, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
 
         self.force.y += 0.005
-        if keys["w"] and not self.jumping:
-            self.jumping = True
-            self.speed.y += -1.5
+        if self.has_rolled and not keys['s']:
+            self.has_rolled = False
+        if self.has_jumped and not keys['w']:
+            self.has_jumped = False
+        if self.rolling:
+            self.rolling_timer += dt
+            if self.rolling_timer >= 325:
+                self.rolling_timer = 0
+                self.rolling = False
+                bottom = self.box.bottom
+                self.box.h = 64*2
+                self.box.bottom = bottom
+
+        # TODO(gerick): Rolling doesn't feel quite right, think of a better system for it
+        if keys["s"] and not self.rolling and not self.jumping and not self.has_rolled:
+            self.rolling = True
+            self.has_rolled = True
+            bottom = self.box.bottom
+            self.box.h = 64
+            self.box.bottom = bottom
+            self.speed.x += 0.8 * self.dir
+        if keys["w"] and not self.double_jumping and not self.has_jumped:
+            self.has_jumped = True
+            if self.jumping:
+                self.double_jumping = True
+            else:
+                self.jumping = True
+            self.speed.y = -1.5
         if keys["d"]:
+            self.dir = 1
             if self.jumping:
                 self.force.x += 0.002
             else:
                 self.force.x += 0.005
         if keys["a"]:
+            self.dir = -1
             if self.jumping:
                 self.force.x += -0.002
             else:
@@ -100,6 +136,7 @@ def main():
             player.speed.y = 0
             player.speed.x += -player.speed.x/10
             player.jumping = False
+            player.double_jumping = False
 
         window.fill("black")
         draw_grid(window, CELL_SIZE)
