@@ -20,67 +20,11 @@ class Player:
         self.rolling_timer = 0
         self.dir = 1
 
-    # def update(self, keys, dt):
-    #     # TODO(gerick): Remove floating constants
-    #     # TODO(gerick): calculate more accuratly calculate movement speed and the force required
-
-    #     self.force.y += 0.005
-    #     if self.has_rolled and not keys['s']:
-    #         self.has_rolled = False
-    #     if self.has_jumped and not keys['w']:
-    #         self.has_jumped = False
-    #     if self.rolling:
-    #         self.rolling_timer += dt
-    #         if self.rolling_timer >= 325:
-    #             self.rolling_timer = 0
-    #             self.rolling = False
-    #             bottom = self.box.bottom
-    #             self.box.h = 64*2
-    #             self.box.bottom = bottom
-
-    #     # TODO(gerick): Rolling doesn't feel quite right, think of a better system for it
-    #     if keys["s"] and not self.rolling and not self.jumping and not self.has_rolled:
-    #         self.rolling = True
-    #         self.has_rolled = True
-    #         bottom = self.box.bottom
-    #         self.box.h = 64
-    #         self.box.bottom = bottom
-    #         self.speed.x += 0.8 * self.dir
-    #     if keys["w"] and not self.double_jumping and not self.has_jumped:
-    #         self.has_jumped = True
-    #         if self.jumping:
-    #             self.double_jumping = True
-    #         else:
-    #             self.jumping = True
-    #         self.speed.y = -1.5
-    #     if keys["d"]:
-    #         self.dir = 1
-    #         if self.jumping:
-    #             self.force.x += 0.002
-    #         else:
-    #             self.force.x += 0.005
-    #     if keys["a"]:
-    #         self.dir = -1
-    #         if self.jumping:
-    #             self.force.x += -0.002
-    #         else:
-    #             self.force.x += -0.005
-    #         
-    #     self.speed += self.force*dt
-    #     if abs(self.speed.x) < 0.01:
-    #         self.speed.x = 0
-    #     if self.jumping:
-    #         self.speed.x += -self.speed.x/25
-    #     self.speed.x = pg.math.clamp(self.speed.x, -0.8,0.8)
-    #     # NOTE(gerick): Vector2.update() with no args sets the vector to 0
-    #     self.force.update()
-    #     self.box.move_ip(*(self.speed*dt))
-
     def update(self, keys, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
 
-        self.force.y += 0.005
+        self.force.y += 50
         if self.has_rolled and not keys['s']:
             self.has_rolled = False
         if self.has_jumped and not keys['w']:
@@ -108,31 +52,31 @@ class Player:
                 self.double_jumping = True
             else:
                 self.jumping = True
-            self.speed.y = -1.5
+            self.speed.y = -17
         if keys["d"]:
             self.dir = 1
             if self.jumping:
-                self.force.x += 0.002
+                self.force.x += 20
             else:
-                self.force.x += 0.005
+                self.force.x += 50
         if keys["a"]:
             self.dir = -1
             if self.jumping:
-                self.force.x += -0.002
+                self.force.x += -20
             else:
-                self.force.x += -0.005
+                self.force.x += -50
             
         self.speed += self.force*dt
-        if abs(self.speed.x) < 0.01:
-            self.speed.x = 0
+        # if abs(self.speed.x) < 0.01:
+        #     self.speed.x = 0
         if self.jumping:
             self.speed.x += -self.speed.x/25
-        self.speed.x = pg.math.clamp(self.speed.x, -0.8,0.8)
+        self.speed.x = pg.math.clamp(self.speed.x, -8, 8)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
         # self.box.move_ip(*(self.speed*dt))
         self.pos += self.speed*dt
-        print(self.pos)
+        print(self.speed)
 
     def render(self):
         pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 15)
@@ -197,14 +141,23 @@ def main():
     while(True):
         # NOTE(gerick): de waarde van keys wordt veranderd
         handle_events(keys)
-        dt = clock.get_time()
+        dt = clock.get_time() / 1000
         player.update(keys, dt)
 
-        #if player.box.bottom > window.get_height() - CELL_SIZE:
+        traj = []
+        if player.speed.y > 0: # if player is faslling
+            rico = player.speed.x / player.speed.y
+            start_y = int(player.pos.y)
+            start_x = int(player.pos.x)
+            for i in range(10):
+                x = round(start_x + i * rico)
+                y = start_y + i
+                traj.append(Vector2(x, y))
+
         if player.pos.y > map_size.y - 1:
             player.pos.y = map_size.y - 1
             player.speed.y = 0
-            player.speed.x += -player.speed.x/10
+            player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
 
@@ -216,6 +169,8 @@ def main():
                 elif map_get_tile(x,y) == "#":
                     tile = pg.rect.Rect((x*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
                     pg.draw.rect(window, "blue", tile)
+        for pos in traj:
+            pg.draw.rect(window, "orange", pg.rect.Rect(pos*CELL_SIZE, (CELL_SIZE,CELL_SIZE)))
         draw_grid(window, CELL_SIZE)
         player.render()
 
