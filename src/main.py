@@ -79,9 +79,9 @@ class Player:
 
     def render(self):
         pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 15)
-        rect = pg.rect.Rect(0,0,64, 2*64)
-        rect.midbottom = self.pos*64
-        pg.draw.rect(pg.display.get_surface(), "red", rect)
+        # rect = pg.rect.Rect(0,0,64, 2*64)
+        # rect.midbottom = self.pos*64
+        # pg.draw.rect(pg.display.get_surface(), "red", rect)
     #pg.draw.rect(pg.display.get_surface(), "red", self.box)
 
 
@@ -119,15 +119,15 @@ def draw_grid(window, size):
 
 def main():
     map_size = Vector2(24, 8)
-    map =  "........................"
-    map += "...............####....."
-    map += "........................"
-    map += "........................"
-    map += "........................"
-    map += ".................#####.."
-    map += "........................"
-    map += "########################"
-    map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(map) else map[int(y*map_size.x + x)]
+    game_map =  "........................"
+    game_map += ".###...........####....."
+    game_map += "........................"
+    game_map += "........................"
+    game_map += "...######..............."
+    game_map += ".................#####.."
+    game_map += "........................"
+    game_map += "########################"
+    map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
     CELL_SIZE = 64 # pixels
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
@@ -154,34 +154,14 @@ def main():
             player.jumping = False
             player.double_jumping = False
 
-        traj = []
-        if player.speed.y != 0: # if player is faslling
-            rico = player.speed.x / player.speed.y
-            dir = int(player.speed.y / abs(player.speed.y))
-            for dy in range(10):
-                y = int(player.pos.y + dy * dir)
-                ent_x = int(player.pos.x + dy * rico * dir)
-                ex_x = int(player.pos.x + (dy + 1) * rico * dir)
-                if ent_x == ex_x:
-                    if map_get_tile(ent_x, y) == "#":
-                        break
-                    else:
-                        traj.append(Vector2(ent_x, y))
-                else:
-                    count = 0
-                    break_flag = False
-                    for nx in range(ent_x, ex_x+dir, dir):
-                        count += 1
-                        if count > 10:
-                            break_flag = True
-                            break
-                        if map_get_tile(nx, y) == "#":
-                            break_flag = True
-                            break
-                        else:
-                            traj.append(Vector2(nx, y))
-                    if break_flag:
-                        break
+        new_pos = player.pos + player.speed * dt
+        delta_pos = new_pos - player.pos
+        if new_pos // 1 != player.pos // 1:
+            if abs((delta_pos // 1).x) > 1 or abs((delta_pos // 1).y) > 1:
+                print("WARNING: skipped cell. time to consider propper colissions")
+            
+            if map_get_tile(*map(int, new_pos)) == "#":
+                print("collide", new_pos//1 - player.pos//1)
 
             
         window.fill("black")
@@ -192,8 +172,7 @@ def main():
                 elif map_get_tile(x,y) == "#":
                     tile = pg.rect.Rect((x*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
                     pg.draw.rect(window, "blue", tile)
-        for pos in traj:
-            pg.draw.rect(window, "orange", pg.rect.Rect(pos*CELL_SIZE, (CELL_SIZE,CELL_SIZE)))
+        pg.draw.circle(window, "orange", new_pos*CELL_SIZE, 15)
         draw_grid(window, CELL_SIZE)
         player.render()
 
