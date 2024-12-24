@@ -20,7 +20,7 @@ class Player:
         self.rolling_timer = 0
         self.dir = 1
 
-    def update(self, keys, dt):
+    def update(self, keys, game_map, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
 
@@ -74,8 +74,43 @@ class Player:
         self.speed.x = pg.math.clamp(self.speed.x, -16, 16)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
+        self.detect_collisions(game_map, dt)
         # self.box.move_ip(*(self.speed*dt))
         self.pos += self.speed*dt
+
+    def detect_collisions(self, game_map, dt):
+        # TODO(gerick): Get rid of this and make proper map class as soon as possible
+        map_size = Vector2(24, 8)
+        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
+
+        new_pos = self.pos + self.speed * dt
+        delta_pos = new_pos - self.pos
+        if new_pos // 1 != self.pos // 1:
+            if abs((delta_pos // 1).x) > 1 or abs((delta_pos // 1).y) > 1:
+                print("WARNING: skipped cell. time to consider propper colissions")
+            
+            tile_loc = tuple(map(int, new_pos))
+            if map_get_tile(*tile_loc) == "#":
+                collision_normal = (new_pos//1 - self.pos//1) * -1
+                if collision_normal.y == -1:
+                    self.pos.y = tile_loc[1]-0.01
+                    self.speed.y = 0
+                    
+                    self.speed.x += -self.speed.x/9
+                    self.jumping = False
+                    self.double_jumping = False
+                elif collision_normal.y == 1:
+                    self.pos.y = tile_loc[1] + 1 + 0.01
+                    self.speed.y = 0
+
+                if collision_normal.x == -1:
+                    self.pos.x = tile_loc[0] - 0.01
+                    self.speed.x = 0
+                elif collision_normal.x == 1:
+                    self.pos.x = tile_loc[0] + 1 + 0.01
+                    self.speed.x = 0
+                #self.speed += (collision_normal.x * self.speed.x, collision_normal.y * self.speed.y)
+
 
     def render(self):
         pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 15)
@@ -121,8 +156,8 @@ def main():
     map_size = Vector2(24, 8)
     game_map =  "........................"
     game_map += ".###...........####....."
-    game_map += "........................"
-    game_map += "........................"
+    game_map += "........#..............."
+    game_map += "........#..............."
     game_map += "...######..............."
     game_map += ".................#####.."
     game_map += "........................"
@@ -144,7 +179,7 @@ def main():
         # NOTE(gerick): de waarde van keys wordt veranderd
         handle_events(keys)
         dt = clock.get_time() / 1000
-        player.update(keys, dt)
+        player.update(keys, game_map, dt)
 
         if player.pos.y > map_size.y - 1:
             player.pos.y = map_size.y - 1
@@ -153,15 +188,6 @@ def main():
             player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
-
-        new_pos = player.pos + player.speed * dt
-        delta_pos = new_pos - player.pos
-        if new_pos // 1 != player.pos // 1:
-            if abs((delta_pos // 1).x) > 1 or abs((delta_pos // 1).y) > 1:
-                print("WARNING: skipped cell. time to consider propper colissions")
-            
-            if map_get_tile(*map(int, new_pos)) == "#":
-                print("collide", new_pos//1 - player.pos//1)
 
             
         window.fill("black")
@@ -172,7 +198,6 @@ def main():
                 elif map_get_tile(x,y) == "#":
                     tile = pg.rect.Rect((x*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
                     pg.draw.rect(window, "blue", tile)
-        pg.draw.circle(window, "orange", new_pos*CELL_SIZE, 15)
         draw_grid(window, CELL_SIZE)
         player.render()
 
