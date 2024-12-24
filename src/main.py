@@ -7,6 +7,8 @@ class Player:
         # TODO(gerick): Do we really want a rect hitbox?
         # self.box = pg.rect.Rect((512,256), (w,h))
         self.pos = Vector2()
+        self.front = Vector2()
+        self.back = Vector2()
         self.speed = Vector2()
         self.force = Vector2()
 
@@ -77,6 +79,8 @@ class Player:
         self.detect_collisions(game_map, dt)
         # self.box.move_ip(*(self.speed*dt))
         self.pos += self.speed*dt
+        self.front = self.pos + (0.3, 0)
+        self.back = self.pos + (-0.3, 0)
 
     def detect_collisions(self, game_map, dt):
         # TODO(gerick): Get rid of this and make proper map class as soon as possible
@@ -102,18 +106,28 @@ class Player:
                 elif collision_normal.y == 1:
                     self.pos.y = tile_loc[1] + 1 + 0.01
                     self.speed.y = 0
-
+        new_front = self.front + self.speed * dt
+        if new_front // 1 != self.front // 1:
+            tile_loc = tuple(map(int, new_front))
+            if map_get_tile(*tile_loc) == "#":
+                collision_normal = (new_front//1 - self.front//1) * -1
                 if collision_normal.x == -1:
-                    self.pos.x = tile_loc[0] - 0.01
+                    self.pos.x = tile_loc[0] - 0.01 - 0.3 
                     self.speed.x = 0
-                elif collision_normal.x == 1:
-                    self.pos.x = tile_loc[0] + 1 + 0.01
+        new_back = self.back + self.speed * dt
+        if new_back // 1 != self.back // 1:
+            tile_loc = tuple(map(int, new_back))
+            if map_get_tile(*tile_loc) == "#":
+                collision_normal = (new_back//1 - self.back//1) * -1
+                if collision_normal.x == 1:
+                    self.pos.x = tile_loc[0] + 0.01 + 0.3 + 1
                     self.speed.x = 0
-                #self.speed += (collision_normal.x * self.speed.x, collision_normal.y * self.speed.y)
 
 
     def render(self):
-        pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 15)
+        pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.front*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.back*64, 5)
         # rect = pg.rect.Rect(0,0,64, 2*64)
         # rect.midbottom = self.pos*64
         # pg.draw.rect(pg.display.get_surface(), "red", rect)
@@ -158,7 +172,7 @@ def main():
     game_map += ".###...........####....."
     game_map += "........#..............."
     game_map += "........#..............."
-    game_map += "...######..............."
+    game_map += "...#########............"
     game_map += ".................#####.."
     game_map += "........................"
     game_map += "########################"
