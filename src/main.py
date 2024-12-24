@@ -67,19 +67,21 @@ class Player:
                 self.force.x += -50
             
         self.speed += self.force*dt
-        # if abs(self.speed.x) < 0.01:
-        #     self.speed.x = 0
+        if abs(self.speed.x) < 0.001:
+            self.speed.x = 0
         if self.jumping:
             self.speed.x += -self.speed.x/25
-        self.speed.x = pg.math.clamp(self.speed.x, -8, 8)
+        self.speed.x = pg.math.clamp(self.speed.x, -16, 16)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
         # self.box.move_ip(*(self.speed*dt))
         self.pos += self.speed*dt
-        print(self.speed)
 
     def render(self):
         pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 15)
+        rect = pg.rect.Rect(0,0,64, 2*64)
+        rect.midbottom = self.pos*64
+        pg.draw.rect(pg.display.get_surface(), "red", rect)
     #pg.draw.rect(pg.display.get_surface(), "red", self.box)
 
 
@@ -117,15 +119,15 @@ def draw_grid(window, size):
 
 def main():
     map_size = Vector2(24, 8)
-    map =  "#####..................."
+    map =  "........................"
     map += "...............####....."
     map += "........................"
     map += "........................"
-    map += ".....#######............"
+    map += "........................"
     map += ".................#####.."
     map += "........................"
     map += "########################"
-    map_get_tile = lambda x,y: " " if (not (0 <= x < map_size.x)) and (not (0 <= y < map_size.y)) else map[int(y*map_size.x + x)]
+    map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(map) else map[int(y*map_size.x + x)]
     CELL_SIZE = 64 # pixels
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
@@ -144,23 +146,44 @@ def main():
         dt = clock.get_time() / 1000
         player.update(keys, dt)
 
-        traj = []
-        if player.speed.y > 0: # if player is faslling
-            rico = player.speed.x / player.speed.y
-            start_y = int(player.pos.y)
-            start_x = int(player.pos.x)
-            for i in range(10):
-                x = round(start_x + i * rico)
-                y = start_y + i
-                traj.append(Vector2(x, y))
-
         if player.pos.y > map_size.y - 1:
             player.pos.y = map_size.y - 1
             player.speed.y = 0
+            # TODO(gerick): deccelaration is not time bound (low frames = lots of slide)
             player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
 
+        traj = []
+        if player.speed.y != 0: # if player is faslling
+            rico = player.speed.x / player.speed.y
+            dir = int(player.speed.y / abs(player.speed.y))
+            for dy in range(10):
+                y = int(player.pos.y + dy * dir)
+                ent_x = int(player.pos.x + dy * rico * dir)
+                ex_x = int(player.pos.x + (dy + 1) * rico * dir)
+                if ent_x == ex_x:
+                    if map_get_tile(ent_x, y) == "#":
+                        break
+                    else:
+                        traj.append(Vector2(ent_x, y))
+                else:
+                    count = 0
+                    break_flag = False
+                    for nx in range(ent_x, ex_x+dir, dir):
+                        count += 1
+                        if count > 10:
+                            break_flag = True
+                            break
+                        if map_get_tile(nx, y) == "#":
+                            break_flag = True
+                            break
+                        else:
+                            traj.append(Vector2(nx, y))
+                    if break_flag:
+                        break
+
+            
         window.fill("black")
         for x in range(int(map_size.x)):
             for y in range(int(map_size.y)):
@@ -175,7 +198,7 @@ def main():
         player.render()
 
         pg.display.flip()
-        clock.tick(60)
+        clock.tick(50)
 
 if __name__ == "__main__":
     main()
