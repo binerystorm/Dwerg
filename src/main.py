@@ -2,11 +2,63 @@ import sys
 import pygame as pg
 from pygame.math import Vector2
 
+class Hitbox:
+    def __init__(self,  pos, size):
+        self.pos = pos
+        self.size = size
+        self.collisions = {
+            "v_bl": False,
+            "v_br": False,
+            "v_tl": False,
+            "v_tr": False,
+        }
+
+    @property
+    def bottom_left(self):
+        return Vector2(self.pos.x - self.size.x / 2, self.pos.y + self.size.y / 2)
+    @property
+    def bottom_right(self):
+        return self.pos + self.size / 2
+    @property
+    def top_left(self):
+        return self.pos - self.size / 2
+    @property
+    def top_right(self):
+        return Vector2(self.pos.x + self.size.x/2, self.pos.y - self.size.y/2)
+    @property
+    def top(self):
+        return self.pos.y - self.size.y / 2
+    @top.setter
+    def top(self, val):
+        self.pos.y = val + self.size.y / 2
+    @property
+    def bottom(self):
+        return self.pos.y + self.size.y / 2
+    @bottom.setter
+    def bottom(self, val):
+        self.pos.y = val - self.size.y / 2
+    
+    def check_vertical_collisions(self, game_map):
+        # TODO(gerick): Get rid of this and make proper map class as soon as possible
+        map_size = Vector2(24, 8)
+        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
+
+        if map_get_tile(*map(int, self.bottom_right)) == "#":
+            self.collisions["v_br"] = True
+        if map_get_tile(*map(int, self.bottom_left)) == "#":
+            self.collisions["v_bl"] = True
+        if map_get_tile(*map(int, self.top_right)) == "#":
+            self.collisions["v_tr"] = True
+        if map_get_tile(*map(int, self.top_left)) == "#":
+            self.collisions["v_tl"] = True
+
+
 class Player:
     def __init__(self, w, h):
         # TODO(gerick): Do we really want a rect hitbox?
         # self.box = pg.rect.Rect((512,256), (w,h))
         self.pos = Vector2()
+        self.box = Hitbox(self.pos, Vector2(w,h))
         self.front = Vector2()
         self.back = Vector2()
         self.speed = Vector2()
@@ -76,58 +128,41 @@ class Player:
         self.speed.x = pg.math.clamp(self.speed.x, -16, 16)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
-        self.detect_collisions(game_map, dt)
+        # self.detect_collisions(game_map, dt)
         # self.box.move_ip(*(self.speed*dt))
-        self.pos += self.speed*dt
+        # self.pos += self.speed*dt
+        self.box.pos += self.speed * dt
+        self.box.check_vertical_collisions(game_map)
+        if self.box.collisions["v_bl"] or self.box.collisions["v_br"]:
+            self.speed.y = 0
+            self.box.bottom = int(self.box.bottom) - 0.01
+
+            self.speed.x += -self.speed.x/9
+            self.jumping = False
+            self.double_jumping = False
+
+            self.box.collisions['v_bl'] = False
+            self.box.collisions['v_br'] = False
+
+        if self.box.collisions["v_tl"] or self.box.collisions["v_tr"]:
+            self.speed.y = 0
+            self.box.top = int(self.box.top) + 0.01 + 1
+
+            self.box.collisions['v_tl'] = False
+            self.box.collisions['v_tr'] = False
+
         self.front = self.pos + (0.3, 0)
         self.back = self.pos + (-0.3, 0)
 
-    def detect_collisions(self, game_map, dt):
-        # TODO(gerick): Get rid of this and make proper map class as soon as possible
-        map_size = Vector2(24, 8)
-        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
-
-        new_pos = self.pos + self.speed * dt
-        delta_pos = new_pos - self.pos
-        if new_pos // 1 != self.pos // 1:
-            if abs((delta_pos // 1).x) > 1 or abs((delta_pos // 1).y) > 1:
-                print("WARNING: skipped cell. time to consider propper colissions")
-            
-            tile_loc = tuple(map(int, new_pos))
-            if map_get_tile(*tile_loc) == "#":
-                collision_normal = (new_pos//1 - self.pos//1) * -1
-                if collision_normal.y == -1:
-                    self.pos.y = tile_loc[1]-0.01
-                    self.speed.y = 0
-                    
-                    self.speed.x += -self.speed.x/9
-                    self.jumping = False
-                    self.double_jumping = False
-                elif collision_normal.y == 1:
-                    self.pos.y = tile_loc[1] + 1 + 0.01
-                    self.speed.y = 0
-        new_front = self.front + self.speed * dt
-        if new_front // 1 != self.front // 1:
-            tile_loc = tuple(map(int, new_front))
-            if map_get_tile(*tile_loc) == "#":
-                collision_normal = (new_front//1 - self.front//1) * -1
-                if collision_normal.x == -1:
-                    self.pos.x = tile_loc[0] - 0.01 - 0.3 
-                    self.speed.x = 0
-        new_back = self.back + self.speed * dt
-        if new_back // 1 != self.back // 1:
-            tile_loc = tuple(map(int, new_back))
-            if map_get_tile(*tile_loc) == "#":
-                collision_normal = (new_back//1 - self.back//1) * -1
-                if collision_normal.x == 1:
-                    self.pos.x = tile_loc[0] + 0.01 + 0.3 + 1
-                    self.speed.x = 0
-
-
     def render(self):
-        pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", self.front*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", self.back*64, 5)
+        #pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 5)
+        #pg.draw.circle(pg.display.get_surface(), "red", self.front*64, 5)
+        #pg.draw.circle(pg.display.get_surface(), "red", self.back*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_left*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_right*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.box.top_left*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", self.box.top_right*64, 5)
+
         # rect = pg.rect.Rect(0,0,64, 2*64)
         # rect.midbottom = self.pos*64
         # pg.draw.rect(pg.display.get_surface(), "red", rect)
@@ -182,7 +217,7 @@ def main():
     pg.init()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
-    player = Player(1*CELL_SIZE,2*CELL_SIZE)
+    player = Player(0.6,1.4)
     keys = {
         "w": False,
         "a": False,
