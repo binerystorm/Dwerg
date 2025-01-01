@@ -2,6 +2,13 @@ import sys
 import pygame as pg
 from pygame.math import Vector2
 
+def vec_mul(v1, v2):
+    if type(v1) == tuple:
+        v1 = Vector2(v1)
+    if type(v2) == tuple:
+        v2 = Vector2(v2)
+    return Vector2(v1.x * v2.x , v1.y * v2.y)
+
 class Hitbox:
     def __init__(self,  pos, size):
         self.pos = pos
@@ -12,6 +19,16 @@ class Hitbox:
             "v_tl": False,
             "v_tr": False,
         }
+
+    @property
+    def horizontal_points(self):
+        mid_left = self.top_left + (0, self.size.y/2)
+        mid_right = self.top_right + (0, self.size.y/2)
+        return [self.bottom_left, self.bottom_right, self.top_left, self.top_right, mid_left, mid_right]
+
+    @property
+    def vertical_points(self):
+        return [self.bottom_left, self.bottom_right, self.top_left, self.top_right]
 
     @property
     def bottom_left(self):
@@ -37,19 +54,65 @@ class Hitbox:
     @bottom.setter
     def bottom(self, val):
         self.pos.y = val - self.size.y / 2
-    
-    def check_vertical_collisions(self, game_map):
+    @property
+    def left(self):
+        return self.pos.x - self.size.x / 2
+    @left.setter
+    def left(self, val):
+        self.pos.x = val + self.size.x / 2
+    @property
+    def right(self):
+        return self.pos.x + self.size.x / 2
+    @right.setter
+    def right(self, val):
+        self.pos.x = val - self.size.x / 2
+
+    def get_collisions(self, vel, game_map, dir):
+        # TODO(gerick): Get rid of this and make proper map class as soon as possible
+        map_size = Vector2(24, 8)
+        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
+        tile = lambda x: tuple(map(int, x))
+
+        collisions = []
+        for point in self.vertical_points if dir else self.horizontal_points:
+            new_point = point + vel
+            tile_loc = tuple(map(int, new_point))
+            col_norm = new_point // 1 - point // 1
+            # NOTE(gerick): ignore multidimentional tile crossings
+            if abs(col_norm.x) == 1 and abs(col_norm.y) == 1:
+                pass
+                # TODO(gerick): figure out whether this commented code is needed.
+                # if so figure out why it didn't work
+
+                # diag_tile = tile(point + col_norm)
+                # ver_tile = tile(point+vec_mul((0,1), col_norm))
+                # hor_tile = tile(point+vec_mul((1,0), col_norm))
+                # if map_get_tile(*ver_tile) == "#" and map_get_tile(*hor_tile):
+                #     print("corner")
+                # if map_get_tile(*ver_tile) == "#" and map_get_tile(*diag_tile) == "#":
+                #     print("floor")
+                # if map_get_tile(*hor_tile) == "#" and map_get_tile(*diag_tile) == "#":
+                #     print("wall")
+            elif map_get_tile(*tile(new_point)) == "#" and col_norm != (0,0):
+                collisions.append((tile_loc, col_norm.copy()))
+                
+        return collisions
+
+
+    def check_vertical_collisions(self, old_pos, game_map):
         # TODO(gerick): Get rid of this and make proper map class as soon as possible
         map_size = Vector2(24, 8)
         map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
 
-        if map_get_tile(*map(int, self.bottom_right)) == "#":
+        col_norm = (self.pos.y + self.size.y/2) // 1 - (old_pos.y + self.size.y/2) // 1
+        print(col_norm)
+        if col_norm == 1 and map_get_tile(*map(int, self.bottom_right)) == "#":
             self.collisions["v_br"] = True
-        if map_get_tile(*map(int, self.bottom_left)) == "#":
+        if col_norm == 1 and map_get_tile(*map(int, self.bottom_left)) == "#":
             self.collisions["v_bl"] = True
-        if map_get_tile(*map(int, self.top_right)) == "#":
+        if col_norm == -1 and map_get_tile(*map(int, self.top_right)) == "#":
             self.collisions["v_tr"] = True
-        if map_get_tile(*map(int, self.top_left)) == "#":
+        if col_norm == -1 and map_get_tile(*map(int, self.top_left)) == "#":
             self.collisions["v_tl"] = True
 
 
@@ -131,33 +194,31 @@ class Player:
         # self.detect_collisions(game_map, dt)
         # self.box.move_ip(*(self.speed*dt))
         # self.pos += self.speed*dt
+        for t, n in self.box.get_collisions(self.speed*dt, game_map, True):
+            if n.y == 1:
+                self.box.bottom = t[1] - 0.01
+                self.speed.y = 0
+                self.jumping = False
+                self.double_jumping = False
+                self.speed.x += -self.speed.x/15
+            if n.y == -1:
+                self.box.top = t[1] + 1 + 0.01
+                self.speed.y = 0
+        for t, n in self.box.get_collisions(self.speed*dt, game_map, False):
+            if n.x == 1:
+                self.speed.x = 0
+                self.box.right = t[0] - 0.01
+            if n.x == -1:
+                self.speed.x = 0
+                self.box.left = t[0] + 1 + 0.01
+
         self.box.pos += self.speed * dt
-        self.box.check_vertical_collisions(game_map)
-        if self.box.collisions["v_bl"] or self.box.collisions["v_br"]:
-            self.speed.y = 0
-            self.box.bottom = int(self.box.bottom) - 0.01
-
-            self.speed.x += -self.speed.x/9
-            self.jumping = False
-            self.double_jumping = False
-
-            self.box.collisions['v_bl'] = False
-            self.box.collisions['v_br'] = False
-
-        if self.box.collisions["v_tl"] or self.box.collisions["v_tr"]:
-            self.speed.y = 0
-            self.box.top = int(self.box.top) + 0.01 + 1
-
-            self.box.collisions['v_tl'] = False
-            self.box.collisions['v_tr'] = False
-
-        self.front = self.pos + (0.3, 0)
-        self.back = self.pos + (-0.3, 0)
 
     def render(self):
         #pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 5)
         #pg.draw.circle(pg.display.get_surface(), "red", self.front*64, 5)
         #pg.draw.circle(pg.display.get_surface(), "red", self.back*64, 5)
+        pink = "#"
         pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_left*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_right*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", self.box.top_left*64, 5)
