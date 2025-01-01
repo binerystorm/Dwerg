@@ -98,32 +98,9 @@ class Hitbox:
                 
         return collisions
 
-
-    def check_vertical_collisions(self, old_pos, game_map):
-        # TODO(gerick): Get rid of this and make proper map class as soon as possible
-        map_size = Vector2(24, 8)
-        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
-
-        col_norm = (self.pos.y + self.size.y/2) // 1 - (old_pos.y + self.size.y/2) // 1
-        print(col_norm)
-        if col_norm == 1 and map_get_tile(*map(int, self.bottom_right)) == "#":
-            self.collisions["v_br"] = True
-        if col_norm == 1 and map_get_tile(*map(int, self.bottom_left)) == "#":
-            self.collisions["v_bl"] = True
-        if col_norm == -1 and map_get_tile(*map(int, self.top_right)) == "#":
-            self.collisions["v_tr"] = True
-        if col_norm == -1 and map_get_tile(*map(int, self.top_left)) == "#":
-            self.collisions["v_tl"] = True
-
-
 class Player:
     def __init__(self, w, h):
-        # TODO(gerick): Do we really want a rect hitbox?
-        # self.box = pg.rect.Rect((512,256), (w,h))
-        self.pos = Vector2()
-        self.box = Hitbox(self.pos, Vector2(w,h))
-        self.front = Vector2()
-        self.back = Vector2()
+        self.box = Hitbox(Vector2(), Vector2(w,h))
         self.speed = Vector2()
         self.force = Vector2()
 
@@ -156,6 +133,7 @@ class Player:
                 self.box.bottom = bottom
 
         # TODO(gerick): Rolling doesn't feel quite right, think of a better system for it
+        # TODO(gerick): Rolling has broken since the new hit box implementation
         if keys["s"] and not self.rolling and not self.jumping and not self.has_rolled:
             self.rolling = True
             self.has_rolled = True
@@ -191,9 +169,6 @@ class Player:
         self.speed.x = pg.math.clamp(self.speed.x, -16, 16)
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
-        # self.detect_collisions(game_map, dt)
-        # self.box.move_ip(*(self.speed*dt))
-        # self.pos += self.speed*dt
         for t, n in self.box.get_collisions(self.speed*dt, game_map, True):
             if n.y == 1:
                 self.box.bottom = t[1] - 0.01
@@ -215,10 +190,6 @@ class Player:
         self.box.pos += self.speed * dt
 
     def render(self):
-        #pg.draw.circle(pg.display.get_surface(), "red", self.pos*64, 5)
-        #pg.draw.circle(pg.display.get_surface(), "red", self.front*64, 5)
-        #pg.draw.circle(pg.display.get_surface(), "red", self.back*64, 5)
-        pink = "#"
         pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_left*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_right*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", self.box.top_left*64, 5)
@@ -291,8 +262,8 @@ def main():
         dt = clock.get_time() / 1000
         player.update(keys, game_map, dt)
 
-        if player.pos.y > map_size.y - 1:
-            player.pos.y = map_size.y - 1
+        if player.box.pos.y > map_size.y - 1:
+            player.box.pos.y = map_size.y - 1
             player.speed.y = 0
             # TODO(gerick): deccelaration is not time bound (low frames = lots of slide)
             player.speed.x += -player.speed.x/9
