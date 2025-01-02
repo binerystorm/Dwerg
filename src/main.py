@@ -189,11 +189,11 @@ class Player:
 
         self.box.pos += self.speed * dt
 
-    def render(self):
-        pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_left*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", self.box.bottom_right*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", self.box.top_left*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", self.box.top_right*64, 5)
+    def render(self, camera_offset):
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_left - camera_offset)*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_right - camera_offset)*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_left - camera_offset)*64, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_right - camera_offset)*64, 5)
 
         # rect = pg.rect.Rect(0,0,64, 2*64)
         # rect.midbottom = self.pos*64
@@ -245,11 +245,13 @@ def main():
     game_map += "########################"
     map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
     CELL_SIZE = 64 # pixels
+    WIN_TILES = Vector2(16, 8)
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
     player = Player(0.6,1.4)
+    camera_offset = Vector2(0,0)
     keys = {
         "w": False,
         "a": False,
@@ -269,6 +271,13 @@ def main():
             player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
+        if player.box.pos.x - camera_offset.x >= WIN_TILES.x:
+            camera_offset.x += 1
+        if player.box.pos.x - camera_offset.x <= 0:
+            camera_offset.x -= 1
+        camera_offset.x = pg.math.clamp(camera_offset.x, 0, map_size.x - WIN_TILES.x)
+        player.box.pos.x = pg.math.clamp(player.box.pos.x, 0, map_size.x)
+
 
             
         window.fill("black")
@@ -277,10 +286,10 @@ def main():
                 if map_get_tile(x,y) == " ":
                     print("ERROR", x, y)
                 elif map_get_tile(x,y) == "#":
-                    tile = pg.rect.Rect((x*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
+                    tile = pg.rect.Rect(((x-camera_offset.x)*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
                     pg.draw.rect(window, "blue", tile)
         draw_grid(window, CELL_SIZE)
-        player.render()
+        player.render(camera_offset)
 
         pg.display.flip()
         clock.tick(50)
