@@ -271,9 +271,9 @@ def main():
             player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
-        if player.box.pos.x - camera_offset.x >= WIN_TILES.x:
+        if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 1:
             camera_offset.x += 1
-        if player.box.pos.x - camera_offset.x <= 0:
+        if player.box.pos.x - camera_offset.x <= 1:
             camera_offset.x -= 1
         camera_offset.x = pg.math.clamp(camera_offset.x, 0, map_size.x - WIN_TILES.x)
         player.box.pos.x = pg.math.clamp(player.box.pos.x, 0, map_size.x)
