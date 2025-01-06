@@ -1,6 +1,7 @@
 import sys
 import pygame as pg
 from pygame.math import Vector2
+import enum
 
 def vec_mul(v1, v2):
     if type(v1) == tuple:
@@ -98,6 +99,14 @@ class Hitbox:
                 
         return collisions
 
+class PlayerState(enum.Enum):
+    idle = 0
+    running = 1
+    slowing = 2
+    jumping = 3
+    d_jumping = 4
+    rolling = 5
+
 class Player:
     def __init__(self, w, h):
         self.box = Hitbox(Vector2(), Vector2(w,h))
@@ -105,6 +114,7 @@ class Player:
         self.force = Vector2()
 
         # TODO(start thinking about whether these flags can be put in a state machine)
+        self.state = PlayerState.idle
         self.jumping  = False
         self.double_jumping = False
         self.rolling  = False
@@ -115,6 +125,8 @@ class Player:
         self.dir = 1
 
     def update(self, keys, game_map, dt):
+        pass
+    def update2(self, keys, game_map, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
 
