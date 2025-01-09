@@ -3,6 +3,9 @@ import pygame as pg
 from pygame.math import Vector2
 import enum
 
+def xor(b1, b2):
+    assert type(b1) == bool and type(b2) == bool
+    return (b1 or b2) and not (b1 and b2)
 def vec_mul(v1, v2):
     if type(v1) == tuple:
         v1 = Vector2(v1)
@@ -105,7 +108,8 @@ class PlayerState(enum.Enum):
     slowing = 2
     jumping = 3
     d_jumping = 4
-    rolling = 5
+    falling = 5
+    rolling = 6
 
 class Player:
     def __init__(self, w, h):
@@ -125,7 +129,42 @@ class Player:
         self.dir = 1
 
     def update(self, keys, game_map, dt):
-        pass
+        match self.state:
+            case PlayerState.idle:
+                if keys["w"]:
+                    self.state = PlayerState.jumping
+                if xor(keys['a'], keys['d']):
+                    self.state = PlayerState.running
+            case PlayerState.running:
+                if not xor(keys['a'], keys['d']):
+                    self.state = PlayerState.slowing
+                if keys["w"]:
+                    self.state = PlayerState.jumping
+                # handle speed
+            case PlayerState.slowing:
+                if keys["w"]:
+                    self.state = PlayerState.jumping
+                if xor(keys['a'], keys['d']):
+                    self.state = PlayerState.running
+                # if speed == 0 state = idle
+                # handle speed
+            case PlayerState.jumping:
+                # if speed < 0 state = falling
+                if keys['w']:
+                    self.state = PlayerState.d_jumping
+                # handle jump
+            case PlayerState.d_jumping:
+                # if speed < 0 state = falling
+                pass
+            case PlayerState.falling:
+                if keys['w']:
+                    self.state = PlayerState.d_jumping
+                # if ground collision ->
+                    # if speed == 0 state = idle
+                    # else if a xor d state = running
+                    # else state = slowing
+            case PlayerState.rolling:
+                pass
     def update2(self, keys, game_map, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
