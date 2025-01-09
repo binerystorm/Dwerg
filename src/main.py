@@ -164,10 +164,10 @@ class Player:
             case PlayerState.running:
                 if not xor(keys['a'], keys['d']):
                     self.state = PlayerState.slowing
+                # else handle speed
                 if keys["w"].pressed:
                     self.state = PlayerState.jumping
                     self.speed.y = -17
-                # handle speed
             case PlayerState.slowing:
                 if keys["w"].pressed:
                     self.state = PlayerState.jumping
@@ -177,7 +177,8 @@ class Player:
                 # if speed == 0 state = idle
                 # handle speed
             case PlayerState.jumping:
-                # if speed < 0 state = falling
+                if self.speed.y > 0:
+                    self.state = PlayerState.falling
                 if keys['w'].pressed:
                     self.state = PlayerState.d_jumping
                     self.speed.y = -17
@@ -185,22 +186,17 @@ class Player:
                 # handle air movement
 
             case PlayerState.d_jumping:
-                # if speed < 0 state = d_falling
-                pass
+                if self.speed.y > 0:
+                    self.state = PlayerState.d_falling
+                # handle air movement
             case PlayerState.falling:
                 if keys['w']:
                     self.state = PlayerState.d_jumping
                     self.speed.y = -17
-                # if ground collision ->
-                    # if speed == 0 state = idle
-                    # else if a xor d state = running
-                    # else state = slowing
+                # handle air movement
             case PlayerState.d_falling:
                 pass
-                # if ground collision ->
-                    # if speed == 0 state = idle
-                    # else if a xor d state = running
-                    # else state = slowing
+                # handle air movement
             case PlayerState.rolling:
                 pass
 
@@ -208,6 +204,33 @@ class Player:
         self.speed += self.force*dt
         # NOTE(gerick): Vector2.update() with no args sets the vector to 0
         self.force.update()
+
+        # NOTE(gerick): I do not know if it is wise to allow states to be
+        # changed from outside the state machine but it is currently the 
+        # simeples sollution and there for the one I adopt
+        for t, n in self.box.get_collisions(self.speed*dt, game_map, True):
+            if n.y == 1:
+                self.box.bottom = t[1] - 0.01
+                self.speed.y = 0
+                self.speed.x += -self.speed.x/15
+
+                # State changing logic
+                if self.speed.x == 0: self.state = PlayerState.idle
+                elif xor(keys['a'], keys['d']): self.state = PlayerState.running
+                else: self.state = PlayerState.slowing
+            if n.y == -1:
+                self.box.top = t[1] + 1 + 0.01
+                self.speed.y = 0
+        for t, n in self.box.get_collisions(self.speed*dt, game_map, False):
+            # TODO(gerick): maybe add a player smashed into wall state for the animation
+            if n.x == 1:
+                self.state = PlayerState.idle
+                self.speed.x = 0
+                self.box.right = t[0] - 0.01
+            if n.x == -1:
+                self.state = PlayerState.idle
+                self.speed.x = 0
+                self.box.left = t[0] + 1 + 0.01
         self.box.pos += self.speed * dt
 
     def update2(self, keys, game_map, dt):
