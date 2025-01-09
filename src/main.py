@@ -3,9 +3,6 @@ import pygame as pg
 from pygame.math import Vector2
 import enum
 
-def xor(b1, b2):
-    assert type(b1) == bool and type(b2) == bool
-    return (b1 or b2) and not (b1 and b2)
 def vec_mul(v1, v2):
     if type(v1) == tuple:
         v1 = Vector2(v1)
@@ -32,6 +29,11 @@ class KeyEvent:
         self.down = False
         self.pressed = False
 
+def xor(b1, b2):
+    if type(b1) == bool and type(b2) == bool:
+        return (b1 or b2) and not (b1 and b2)
+    if type(b1) == KeyEvent and type(b2) == KeyEvent:
+        return (b1 or b2) and not (b1 and b2)
     
 class Hitbox:
     def __init__(self,  pos, size):
@@ -129,7 +131,8 @@ class PlayerState(enum.Enum):
     jumping = 3
     d_jumping = 4
     falling = 5
-    rolling = 6
+    d_falling = 6
+    rolling = 7
 
 class Player:
     def __init__(self, w, h):
@@ -153,34 +156,47 @@ class Player:
 
         match self.state:
             case PlayerState.idle:
-                if keys["w"]:
+                if keys["w"].pressed:
                     self.state = PlayerState.jumping
+                    self.speed.y = -17
                 if xor(keys['a'], keys['d']):
                     self.state = PlayerState.running
             case PlayerState.running:
                 if not xor(keys['a'], keys['d']):
                     self.state = PlayerState.slowing
-                if keys["w"]:
+                if keys["w"].pressed:
                     self.state = PlayerState.jumping
+                    self.speed.y = -17
                 # handle speed
             case PlayerState.slowing:
-                if keys["w"]:
+                if keys["w"].pressed:
                     self.state = PlayerState.jumping
+                    self.speed.y = -17
                 if xor(keys['a'], keys['d']):
                     self.state = PlayerState.running
                 # if speed == 0 state = idle
                 # handle speed
             case PlayerState.jumping:
                 # if speed < 0 state = falling
-                if keys['w']:
+                if keys['w'].pressed:
                     self.state = PlayerState.d_jumping
-                # handle jump
+                    self.speed.y = -17
+
+                # handle air movement
+
             case PlayerState.d_jumping:
-                # if speed < 0 state = falling
+                # if speed < 0 state = d_falling
                 pass
             case PlayerState.falling:
                 if keys['w']:
                     self.state = PlayerState.d_jumping
+                    self.speed.y = -17
+                # if ground collision ->
+                    # if speed == 0 state = idle
+                    # else if a xor d state = running
+                    # else state = slowing
+            case PlayerState.d_falling:
+                pass
                 # if ground collision ->
                     # if speed == 0 state = idle
                     # else if a xor d state = running
@@ -188,6 +204,11 @@ class Player:
             case PlayerState.rolling:
                 pass
 
+        print(self.state)
+        self.speed += self.force*dt
+        # NOTE(gerick): Vector2.update() with no args sets the vector to 0
+        self.force.update()
+        self.box.pos += self.speed * dt
 
     def update2(self, keys, game_map, dt):
         # TODO(gerick): Remove floating constants
@@ -278,7 +299,7 @@ class Player:
 
 def handle_events(keys):
     # TODO(gerick): more understandable robust system for key presses needed
-    for k, v in keys:
+    for k, v in keys.items():
         if v.pressed: keys[k].pressed = False
 
     for event in pg.event.get():
