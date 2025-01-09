@@ -13,6 +13,26 @@ def vec_mul(v1, v2):
         v2 = Vector2(v2)
     return Vector2(v1.x * v2.x , v1.y * v2.y)
 
+class KeyEvent:
+    def __init__(self):
+        self.down = False
+        self.pressed = False
+
+    # NOTE(gerick): This is conveluted lazyness on my part 
+    # However I do think a general keyevent is a good idea
+    # just not the bool method
+    def __bool__(self):
+        return self.down
+
+    def activate(self):
+        self.down = True
+        self.pressed = True
+
+    def deactivate(self):
+        self.down = False
+        self.pressed = False
+
+    
 class Hitbox:
     def __init__(self,  pos, size):
         self.pos = pos
@@ -129,6 +149,8 @@ class Player:
         self.dir = 1
 
     def update(self, keys, game_map, dt):
+        self.force.y += 50
+
         match self.state:
             case PlayerState.idle:
                 if keys["w"]:
@@ -165,6 +187,8 @@ class Player:
                     # else state = slowing
             case PlayerState.rolling:
                 pass
+
+
     def update2(self, keys, game_map, dt):
         # TODO(gerick): Remove floating constants
         # TODO(gerick): calculate more accuratly calculate movement speed and the force required
@@ -253,27 +277,31 @@ class Player:
 
 
 def handle_events(keys):
+    # TODO(gerick): more understandable robust system for key presses needed
+    for k, v in keys:
+        if v.pressed: keys[k].pressed = False
+
     for event in pg.event.get():
         if event.type == pg.QUIT:
             # NOTE(gerick): Dit kunnen we meer robust worden gemaakt in de toekomts als het moet
             pg.quit()
             sys.exit(0)
         if event.type == pg.KEYDOWN and event.key == pg.K_w:
-            keys["w"] = True
+            keys['w'].activate()
         if event.type == pg.KEYUP and event.key == pg.K_w:
-            keys["w"] = False
+            keys['w'].deactivate()
         if event.type == pg.KEYDOWN and event.key == pg.K_a:
-            keys["a"] = True
+            keys['a'].activate()
         if event.type == pg.KEYUP and event.key == pg.K_a:
-            keys["a"] = False
+            keys['a'].deactivate()
         if event.type == pg.KEYDOWN and event.key == pg.K_s:
-            keys["s"] = True
+            keys['s'].activate()
         if event.type == pg.KEYUP and event.key == pg.K_s:
-            keys["s"] = False
+            keys['s'].deactivate()
         if event.type == pg.KEYDOWN and event.key == pg.K_d:
-            keys["d"] = True
+            keys['d'].activate()
         if event.type == pg.KEYUP and event.key == pg.K_d:
-            keys["d"] = False
+            keys['d'].deactivate()
 
 
 def draw_grid(window, size):
@@ -304,10 +332,10 @@ def main():
     player = Player(0.6,1.4)
     camera_offset = Vector2(0,0)
     keys = {
-        "w": False,
-        "a": False,
-        "s": False,
-        "d": False
+        "w": KeyEvent(),
+        "a": KeyEvent(),
+        "s": KeyEvent(),
+        "d": KeyEvent()
     }
     while(True):
         # NOTE(gerick): de waarde van keys wordt veranderd
