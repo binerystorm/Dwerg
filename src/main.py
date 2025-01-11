@@ -29,6 +29,30 @@ class KeyEvent:
         self.down = False
         self.pressed = False
 
+class Map:
+    def __init__(self, w, h, data):
+        if w*h != len(data):
+            raise ValueError("width and hieght values do not corolate with the data length")
+        self.w = w
+        self.h = h
+        self.data = data
+
+    def __getitem__(self, idx):
+        if type(idx) != tuple:
+            raise IndexError("Map takes two index values, one was given")
+        if (n := len(idx)) > 2:
+            raise IndexError(f"Map takes two index values, {n} were given")
+        if not all(map(lambda x: type(x) == int, idx)):
+            raise IndexError(f"Map indexing requires intereger arguments")
+
+        x, y = idx
+        if not (0 <= x < self.w):
+            raise IndexError(f"X is out of bounds: x:{x} range:{0}-{self.w-1}")
+        if not (0 <= y < self.h):
+            raise IndexError(f"Y is out of bounds: x:{y} range:{0}-{self.h-1}")
+        return self.data[y*self.w + x]
+
+
 def xor(b1, b2):
     if type(b1) == bool and type(b2) == bool:
         return (b1 or b2) and not (b1 and b2)
@@ -339,6 +363,9 @@ def main():
     game_map += "........................"
     game_map += "########################"
     map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
+    gmap = Map(24,8, game_map)
+    print(gmap[23,6])
+    return
     CELL_SIZE = 64 # pixels
     WIN_TILES = Vector2(16, 8)
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
