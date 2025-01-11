@@ -66,6 +66,11 @@ class Map:
             raise IndexError(f"Y is out of bounds: x:{y} range:{0}-{self.h-1}")
         return self.data[y*self.w + x]
 
+__game_map = Map.from_ascii_file("./test_map.ascii")
+def get_current_map():
+    global __game_map
+    return __game_map
+
 def xor(b1, b2):
     if type(b1) == bool and type(b2) == bool:
         return (b1 or b2) and not (b1 and b2)
@@ -130,11 +135,9 @@ class Hitbox:
     def right(self, val):
         self.pos.x = val - self.size.x / 2
 
-    def get_collisions(self, vel, game_map, dir):
-        # TODO(gerick): Get rid of this and make proper map class as soon as possible
-        map_size = Vector2(24, 8)
-        map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
+    def get_collisions(self, vel, dir):
         tile = lambda x: tuple(map(int, x))
+        game_map = get_current_map()
 
         collisions = []
         for point in self.vertical_points if dir else self.horizontal_points:
@@ -156,7 +159,7 @@ class Hitbox:
                 #     print("floor")
                 # if map_get_tile(*hor_tile) == "#" and map_get_tile(*diag_tile) == "#":
                 #     print("wall")
-            elif map_get_tile(*tile(new_point)) == "#" and col_norm != (0,0):
+            elif game_map[*tile(new_point)] == "#" and col_norm != (0,0):
                 collisions.append((tile_loc, col_norm.copy()))
                 
         return collisions
@@ -191,7 +194,7 @@ class Player:
         self.rolling_timer = 0
         self.dir = 1
 
-    def update(self, keys, game_map, dt):
+    def update(self, keys, dt):
         self.force.y += 50
 
         # TODO(gerick): set up state anitialization functions, so setup does not need to be done at every state change
@@ -276,7 +279,7 @@ class Player:
         # NOTE(gerick): I do not know if it is wise to allow states to be
         # changed from outside the state machine but it is currently the 
         # simeples sollution and there for the one I adopt
-        for t, n in self.box.get_collisions(self.speed*dt, game_map, True):
+        for t, n in self.box.get_collisions(self.speed*dt, True):
             if n.y == 1:
                 ground_collision = True
                 self.box.bottom = t[1] - 0.01
@@ -292,7 +295,7 @@ class Player:
             if n.y == -1:
                 self.box.top = t[1] + 1 + 0.01
                 self.speed.y = 0
-        for t, n in self.box.get_collisions(self.speed*dt, game_map, False):
+        for t, n in self.box.get_collisions(self.speed*dt, False):
             # TODO(gerick): maybe add a player smashed into wall state for the animation
             if n.x == 1:
                 self.state = PlayerState.idle
@@ -366,23 +369,11 @@ def draw_grid(window, size):
 
 
 def main():
-    map_size = Vector2(24, 8)
-    game_map =  "........................"
-    game_map += ".###...........####....."
-    game_map += "........#..............."
-    game_map += "........#..............."
-    game_map += "...#########............"
-    game_map += ".................#####.."
-    game_map += "........................"
-    game_map += "########################"
-    map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
-    gmap = Map.from_ascii_file("./test_map.ascii")
-    print(gmap[23,7])
-    return
     CELL_SIZE = 64 # pixels
     WIN_TILES = Vector2(16, 8)
     WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
+    game_map = get_current_map()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
     player = Player(0.7, 1.4)
@@ -397,30 +388,30 @@ def main():
         # NOTE(gerick): de waarde van keys wordt veranderd
         handle_events(keys)
         dt = clock.get_time() / 1000
-        player.update(keys, game_map, dt)
+        player.update(keys, dt)
 
-        if player.box.pos.y > map_size.y - 1:
-            player.box.pos.y = map_size.y - 1
+        if player.box.pos.y > game_map.h - 1:
+            player.box.pos.y = game_map.h - 1
             player.speed.y = 0
             # TODO(gerick): deccelaration is not time bound (low frames = lots of slide)
             player.speed.x += -player.speed.x/9
             player.jumping = False
             player.double_jumping = False
-        if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 1:
+        if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 3:
             camera_offset.x += 1
-        if player.box.pos.x - camera_offset.x <= 1:
+        if player.box.pos.x - camera_offset.x <= 3:
             camera_offset.x -= 1
-        camera_offset.x = pg.math.clamp(camera_offset.x, 0, map_size.x - WIN_TILES.x)
-        player.box.pos.x = pg.math.clamp(player.box.pos.x, 0, map_size.x)
+        camera_offset.x = pg.math.clamp(camera_offset.x, 0, game_map.w - WIN_TILES.x - 1)
+        player.box.pos.x = pg.math.clamp(player.box.pos.x, 0, game_map.w-1)
 
 
             
         window.fill("black")
-        for x in range(int(map_size.x)):
-            for y in range(int(map_size.y)):
-                if map_get_tile(x,y) == " ":
+        for x in range(int(game_map.w)):
+            for y in range(game_map.h):
+                if game_map[x,y] == " ":
                     print("ERROR", x, y)
-                elif map_get_tile(x,y) == "#":
+                elif game_map[x,y] == "#":
                     tile = pg.rect.Rect(((x-camera_offset.x)*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
                     pg.draw.rect(window, "blue", tile)
         draw_grid(window, CELL_SIZE)
