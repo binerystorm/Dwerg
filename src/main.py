@@ -136,6 +136,9 @@ class PlayerState(enum.Enum):
 
 class Player:
     def __init__(self, w, h):
+        self.sprite_sheet = pg.image.load("./dwarf.png")
+        self.sprite: pg.surface.Surface = self.sprite_sheet.subsurface((0, 0, 32, 32))
+        self.sprite = pg.transform.scale_by(self.sprite, 4)
         self.box = Hitbox(Vector2(), Vector2(w,h))
         self.speed = Vector2()
         self.force = Vector2()
@@ -156,6 +159,7 @@ class Player:
 
         match self.state:
             case PlayerState.idle:
+                
                 if keys["w"].pressed:
                     self.state = PlayerState.jumping
                     self.speed.y = -17
@@ -166,10 +170,10 @@ class Player:
                     self.state = PlayerState.slowing
                 else:
                     if keys['a']:
-                        dir = -1
+                        self.dir = -1
                     elif keys['d']:
-                        dir = 1
-                    self.force.x += 50 * dir
+                        self.dir = 1
+                    self.force.x += 50 * self.dir
 
                 if keys["w"].pressed:
                     self.state = PlayerState.jumping
@@ -210,11 +214,11 @@ class Player:
             # air resistance
             if xor(keys['a'], keys['d']):
                 if keys['a']:
-                    dir = -1
+                    self.dir = -1
                 elif keys['d']:
-                    dir = 1
+                    self.dir = 1
 
-                self.force.x += 20 * dir
+                self.force.x += 20 * self.dir
             self.speed.x += -self.speed.x/25
 
         self.speed += self.force*dt
@@ -258,86 +262,15 @@ class Player:
 
         self.box.pos += self.speed * dt
 
-    def update2(self, keys, game_map, dt):
-        # TODO(gerick): Remove floating constants
-        # TODO(gerick): calculate more accuratly calculate movement speed and the force required
-
-        self.force.y += 50
-        if self.has_rolled and not keys['s']:
-            self.has_rolled = False
-        if self.has_jumped and not keys['w']:
-            self.has_jumped = False
-        if self.rolling:
-            self.rolling_timer += dt
-            if self.rolling_timer >= 325:
-                self.rolling_timer = 0
-                self.rolling = False
-                bottom = self.box.bottom
-                self.box.h = 64*2
-                self.box.bottom = bottom
-
-        # TODO(gerick): Rolling doesn't feel quite right, think of a better system for it
-        # TODO(gerick): Rolling has broken since the new hit box implementation
-        if keys["s"] and not self.rolling and not self.jumping and not self.has_rolled:
-            self.rolling = True
-            self.has_rolled = True
-            bottom = self.box.bottom
-            self.box.h = 64
-            self.box.bottom = bottom
-            self.speed.x += 0.8 * self.dir
-        if keys["w"] and not self.double_jumping and not self.has_jumped:
-            self.has_jumped = True
-            if self.jumping:
-                self.double_jumping = True
-            else:
-                self.jumping = True
-            self.speed.y = -17
-        if keys["d"]:
-            self.dir = 1
-            if self.jumping:
-                self.force.x += 20
-            else:
-                self.force.x += 50
-        if keys["a"]:
-            self.dir = -1
-            if self.jumping:
-                self.force.x += -20
-            else:
-                self.force.x += -50
-            
-        self.speed += self.force*dt
-        if abs(self.speed.x) < 0.001:
-            self.speed.x = 0
-        if self.jumping:
-            self.speed.x += -self.speed.x/25
-        self.speed.x = pg.math.clamp(self.speed.x, -16, 16)
-        # NOTE(gerick): Vector2.update() with no args sets the vector to 0
-        self.force.update()
-        for t, n in self.box.get_collisions(self.speed*dt, game_map, True):
-            if n.y == 1:
-                self.box.bottom = t[1] - 0.01
-                self.speed.y = 0
-                self.jumping = False
-                self.double_jumping = False
-                self.speed.x += -self.speed.x/15
-            if n.y == -1:
-                self.box.top = t[1] + 1 + 0.01
-                self.speed.y = 0
-        for t, n in self.box.get_collisions(self.speed*dt, game_map, False):
-            if n.x == 1:
-                self.speed.x = 0
-                self.box.right = t[0] - 0.01
-            if n.x == -1:
-                self.speed.x = 0
-                self.box.left = t[0] + 1 + 0.01
-
-        self.box.pos += self.speed * dt
-
     def render(self, camera_offset):
+        sprite_loc = self.box.bottom_left - camera_offset - (0.7, 2)
+        sprite_to_draw = self.sprite if self.dir > 0 else pg.transform.flip(self.sprite, 1, 0)
+        print(self.dir)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_left - camera_offset)*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_right - camera_offset)*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_left - camera_offset)*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_right - camera_offset)*64, 5)
+        pg.display.get_surface().blit(sprite_to_draw, sprite_loc * 64)
 
         # rect = pg.rect.Rect(0,0,64, 2*64)
         # rect.midbottom = self.pos*64
@@ -398,7 +331,7 @@ def main():
     pg.init()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
-    player = Player(0.6,1.4)
+    player = Player(0.7, 1.4)
     camera_offset = Vector2(0,0)
     keys = {
         "w": KeyEvent(),
