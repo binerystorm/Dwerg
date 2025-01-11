@@ -136,9 +136,9 @@ class PlayerState(enum.Enum):
 
 class Player:
     def __init__(self, w, h):
-        self.sprite_sheet = pg.image.load("./dwarf.png")
-        self.sprite: pg.surface.Surface = self.sprite_sheet.subsurface((0, 0, 32, 32))
-        self.sprite = pg.transform.scale_by(self.sprite, 4)
+        self.sprite_sheet = pg.transform.scale_by(pg.image.load("./dwarf.png"), 4)
+        self.sprite_idx = 0
+        self.idle_elap_frame = 0
         self.box = Hitbox(Vector2(), Vector2(w,h))
         self.speed = Vector2()
         self.force = Vector2()
@@ -157,14 +157,24 @@ class Player:
     def update(self, keys, game_map, dt):
         self.force.y += 50
 
+        # TODO(gerick): set up state anitialization functions, so setup does not need to be done at every state change
+        # TODO(gerick): turn this into a series of ifs if's so states can share code
         match self.state:
             case PlayerState.idle:
-                
+                if self.idle_elap_frame == 5:
+                    self.idle_elap_frame = 0
+                    self.sprite_idx = (self.sprite_idx + 1) % 5
                 if keys["w"].pressed:
                     self.state = PlayerState.jumping
                     self.speed.y = -17
+                    self.idle_elap_frame = 0
+                    self.sprite_idx = 0
                 if xor(keys['a'], keys['d']):
                     self.state = PlayerState.running
+                    self.idle_elap_frame = 0
+                    self.sprite_idx = 0
+
+                self.idle_elap_frame += 1
             case PlayerState.running:
                 if not xor(keys['a'], keys['d']):
                     self.state = PlayerState.slowing
@@ -186,7 +196,7 @@ class Player:
                 if xor(keys['a'], keys['d']):
                     self.state = PlayerState.running
 
-                if abs(self.speed.x) < 0.001:
+                if abs(self.speed.x) < 0.01:
                     self.state = PlayerState.idle
                     self.speed.x = 0
 
@@ -264,8 +274,12 @@ class Player:
 
     def render(self, camera_offset):
         sprite_loc = self.box.bottom_left - camera_offset - (0.7, 2)
-        sprite_to_draw = self.sprite if self.dir > 0 else pg.transform.flip(self.sprite, 1, 0)
-        print(self.dir)
+        # sprite_to_draw = self.sprite if self.dir > 0 else pg.transform.flip(self.sprite, 1, 0)
+        if self.dir > 0:
+            sprite_to_draw = self.sprite_sheet.subsurface((self.sprite_idx * 32*4, 0, 32*4, 32*4))
+        else:
+            sprite_to_draw = pg.transform.flip(self.sprite_sheet.subsurface((self.sprite_idx * 32*4, 0, 32*4, 32*4)), 1, 0)
+
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_left - camera_offset)*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_right - camera_offset)*64, 5)
         pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_left - camera_offset)*64, 5)
