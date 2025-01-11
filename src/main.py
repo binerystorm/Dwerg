@@ -3,6 +3,7 @@ import pygame as pg
 from pygame.math import Vector2
 import enum
 
+
 def vec_mul(v1, v2):
     if type(v1) == tuple:
         v1 = Vector2(v1)
@@ -37,6 +38,19 @@ class Map:
         self.h = h
         self.data = data
 
+    @classmethod
+    def from_ascii_file(cls, path):
+        # TODO(gerick): proper user error reporting
+        with open(path, "r") as f:
+            lines = f.readlines()
+            if len(lines) == 0:
+                raise Exception(f"file: {path} is empty, can not load map")
+            h = len(lines)
+            w = len(lines[0])
+            if any(map(lambda x: len(x) != w, lines)) or w == 0:
+                raise Exception(f"Incorrect file format, can not load map")
+        return cls(w, h, "".join(lines))
+            
     def __getitem__(self, idx):
         if type(idx) != tuple:
             raise IndexError("Map takes two index values, one was given")
@@ -51,7 +65,6 @@ class Map:
         if not (0 <= y < self.h):
             raise IndexError(f"Y is out of bounds: x:{y} range:{0}-{self.h-1}")
         return self.data[y*self.w + x]
-
 
 def xor(b1, b2):
     if type(b1) == bool and type(b2) == bool:
@@ -363,8 +376,8 @@ def main():
     game_map += "........................"
     game_map += "########################"
     map_get_tile = lambda x,y: " "  if int(y*map_size.x + x) < 0 or int(y*map_size.x + x) >= len(game_map) else game_map[int(y*map_size.x + x)]
-    gmap = Map(24,8, game_map)
-    print(gmap[23,6])
+    gmap = Map.from_ascii_file("./test_map.ascii")
+    print(gmap[23,7])
     return
     CELL_SIZE = 64 # pixels
     WIN_TILES = Vector2(16, 8)
