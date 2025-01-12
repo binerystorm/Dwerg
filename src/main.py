@@ -31,35 +31,38 @@ class KeyEvent:
         self.pressed = False
 
 class Map:
-    def __init__(self, w, h, data):
+    def __init__(self, w, h, data, path_texture):
         if w*h != len(data):
             raise ValueError("width and hieght values do not corolate with the data length")
+        self.texture = pg.transform.scale_by(pg.image.load(path_texture).subsurface(((0,16),(16,16))), 4)
         self.w = w
         self.h = h
         self.data = data
 
     @classmethod
-    def from_ascii_file(cls, path):
+    def from_ascii_file(cls, path_map, path_texture):
+        # TODO(gerick): missing texture managing
         # TODO(gerick): proper user error reporting
-        with open(path, "r") as f:
+        with open(path_map, "r") as f:
             lines = f.readlines()
             if len(lines) == 0:
-                raise Exception(f"file: {path} is empty, can not load map")
+                raise Exception(f"file: {path_map} is empty, can not load map")
             h = len(lines)
             w = len(lines[0])
             if any(map(lambda x: len(x) != w, lines)) or w == 0:
                 raise Exception(f"Incorrect file format, can not load map")
-        return cls(w, h, "".join(lines))
+        return cls(w, h, "".join(lines), path_texture)
             
     # TODO make camera class that is globaly accessible which contains of all
     # of the screen size and tile size info
     def render(self, camera_offset, cs, ss):
-        print(camera_offset)
         for x in range(int(camera_offset.x), int(camera_offset.x + ss.x)):
             for y in range(int(camera_offset.y), int(camera_offset.y + ss.y)):
                 if self[x,y] == "#":
-                    tile = pg.rect.Rect(((x-camera_offset.x)*cs, y*cs), (cs,cs))
-                    pg.draw.rect(pg.display.get_surface(), "blue", tile)
+                    tile_loc = Vector2((x-camera_offset.x)*cs, y*cs)
+                    pg.display.get_surface().blit(self.texture, tile_loc)
+                    #pg.draw.rect(pg.display.get_surface(), "blue", tile)
+                
 
     def __getitem__(self, idx):
         if type(idx) != tuple:
@@ -76,7 +79,7 @@ class Map:
             raise IndexError(f"Y is out of bounds: x:{y} range:{0}-{self.h-1}")
         return self.data[y*self.w + x]
 
-__game_map = Map.from_ascii_file("./test_map.ascii")
+__game_map = Map.from_ascii_file("./test_map.ascii", "./tile_sheet_crappy.png")
 def get_current_map():
     global __game_map
     return __game_map
@@ -421,13 +424,6 @@ def main():
 
             
         window.fill("black")
-        # for x in range(int(game_map.w)):
-        #     for y in range(game_map.h):
-        #         if game_map[x,y] == " ":
-        #             print("ERROR", x, y)
-        #         elif game_map[x,y] == "#":
-        #             tile = pg.rect.Rect(((x-camera_offset.x)*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
-        #             pg.draw.rect(window, "blue", tile)
         game_map.render(camera_offset, CELL_SIZE, WIN_TILES)
         draw_grid(window, CELL_SIZE)
         player.render(camera_offset)
