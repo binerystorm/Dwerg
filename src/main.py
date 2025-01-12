@@ -51,6 +51,16 @@ class Map:
                 raise Exception(f"Incorrect file format, can not load map")
         return cls(w, h, "".join(lines))
             
+    # TODO make camera class that is globaly accessible which contains of all
+    # of the screen size and tile size info
+    def render(self, camera_offset, cs, ss):
+        print(camera_offset)
+        for x in range(int(camera_offset.x), int(camera_offset.x + ss.x)):
+            for y in range(int(camera_offset.y), int(camera_offset.y + ss.y)):
+                if self[x,y] == "#":
+                    tile = pg.rect.Rect(((x-camera_offset.x)*cs, y*cs), (cs,cs))
+                    pg.draw.rect(pg.display.get_surface(), "blue", tile)
+
     def __getitem__(self, idx):
         if type(idx) != tuple:
             raise IndexError("Map takes two index values, one was given")
@@ -313,6 +323,10 @@ class Player:
         self.box.pos += self.speed * dt
 
     def render(self, camera_offset):
+        # TODO(gerick): fix the sprite drawing locaction so it better fits the hitbox
+        # (e.g. the sprite is in a different location relative to the hitbox when fliped)
+        # TODO(gerick): get rid of all the magic constants and make the al relative to the 
+        # screen size and cell size
         sprite_loc = self.box.bottom_left - camera_offset - (0.7, 2)
         # sprite_to_draw = self.sprite if self.dir > 0 else pg.transform.flip(self.sprite, 1, 0)
         if self.dir > 0:
@@ -407,13 +421,14 @@ def main():
 
             
         window.fill("black")
-        for x in range(int(game_map.w)):
-            for y in range(game_map.h):
-                if game_map[x,y] == " ":
-                    print("ERROR", x, y)
-                elif game_map[x,y] == "#":
-                    tile = pg.rect.Rect(((x-camera_offset.x)*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
-                    pg.draw.rect(window, "blue", tile)
+        # for x in range(int(game_map.w)):
+        #     for y in range(game_map.h):
+        #         if game_map[x,y] == " ":
+        #             print("ERROR", x, y)
+        #         elif game_map[x,y] == "#":
+        #             tile = pg.rect.Rect(((x-camera_offset.x)*CELL_SIZE, y*CELL_SIZE), (CELL_SIZE,CELL_SIZE))
+        #             pg.draw.rect(window, "blue", tile)
+        game_map.render(camera_offset, CELL_SIZE, WIN_TILES)
         draw_grid(window, CELL_SIZE)
         player.render(camera_offset)
 
