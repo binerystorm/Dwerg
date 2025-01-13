@@ -30,11 +30,16 @@ class KeyEvent:
         self.down = False
         self.pressed = False
 
+class Camara:
+    def __init__(self):
+        pass
+
 class Map:
+    TEXTURE_SIZE = 16
     def __init__(self, w, h, data, path_texture):
         if w*h != len(data):
             raise ValueError("width and hieght values do not corolate with the data length")
-        self.texture = pg.transform.scale_by(pg.image.load(path_texture).subsurface(((0,16),(16,16))), 4)
+        self.texture = pg.image.load(path_texture).subsurface(((0,16),(16,16)))
         self.w = w
         self.h = h
         self.data = data
@@ -56,11 +61,12 @@ class Map:
     # TODO make camera class that is globaly accessible which contains of all
     # of the screen size and tile size info
     def render(self, camera_offset, cs, ss):
+        texture_to_render = pg.transform.scale_by(self.texture, cs / self.TEXTURE_SIZE)
         for x in range(int(camera_offset.x), int(camera_offset.x + ss.x)):
             for y in range(int(camera_offset.y), int(camera_offset.y + ss.y)):
                 if self[x,y] == "#":
                     tile_loc = Vector2((x-camera_offset.x)*cs, y*cs)
-                    pg.display.get_surface().blit(self.texture, tile_loc)
+                    pg.display.get_surface().blit(texture_to_render, tile_loc)
                     #pg.draw.rect(pg.display.get_surface(), "blue", tile)
                 
 
@@ -188,8 +194,10 @@ class PlayerState(enum.Enum):
     rolling = 7
 
 class Player:
-    def __init__(self, w, h):
-        self.sprite_sheet = pg.transform.scale_by(pg.image.load("./dwarf.png"), 4)
+    TEXTURE_SIZE = 32
+    def __init__(self, w, h, cs):
+        self.SCALE_FACTOR = (cs/self.TEXTURE_SIZE) * 2
+        self.sprite_sheet = pg.transform.scale_by(pg.image.load("./dwarf.png"), self.SCALE_FACTOR)
         self.sprite_idx = 0
         self.idle_elap_frame = 0
         self.box = Hitbox(Vector2(), Vector2(w,h))
@@ -325,23 +333,24 @@ class Player:
 
         self.box.pos += self.speed * dt
 
-    def render(self, camera_offset):
+    def render(self, camera_offset, cs):
         # TODO(gerick): fix the sprite drawing locaction so it better fits the hitbox
         # (e.g. the sprite is in a different location relative to the hitbox when fliped)
         # TODO(gerick): get rid of all the magic constants and make the al relative to the 
         # screen size and cell size
         sprite_loc = self.box.bottom_left - camera_offset - (0.7, 2)
         # sprite_to_draw = self.sprite if self.dir > 0 else pg.transform.flip(self.sprite, 1, 0)
+        scaled_texture_size = self.TEXTURE_SIZE*self.SCALE_FACTOR
         if self.dir > 0:
-            sprite_to_draw = self.sprite_sheet.subsurface((self.sprite_idx * 32*4, 0, 32*4, 32*4))
+            sprite_to_draw = self.sprite_sheet.subsurface((self.sprite_idx * scaled_texture_size, 0, scaled_texture_size, scaled_texture_size))
         else:
-            sprite_to_draw = pg.transform.flip(self.sprite_sheet.subsurface((self.sprite_idx * 32*4, 0, 32*4, 32*4)), 1, 0)
+            sprite_to_draw = pg.transform.flip(self.sprite_sheet.subsurface((self.sprite_idx * scaled_texture_size, 0, scaled_texture_size, scaled_texture_size)), 1, 0)
 
-        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_left - camera_offset)*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_right - camera_offset)*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_left - camera_offset)*64, 5)
-        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_right - camera_offset)*64, 5)
-        pg.display.get_surface().blit(sprite_to_draw, sprite_loc * 64)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_left - camera_offset)*cs, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.bottom_right - camera_offset)*cs, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_left - camera_offset)*cs, 5)
+        pg.draw.circle(pg.display.get_surface(), "red", (self.box.top_right - camera_offset)*cs, 5)
+        pg.display.get_surface().blit(sprite_to_draw, sprite_loc * cs)
 
         # rect = pg.rect.Rect(0,0,64, 2*64)
         # rect.midbottom = self.pos*64
@@ -386,14 +395,16 @@ def draw_grid(window, size):
 
 
 def main():
-    CELL_SIZE = 64 # pixels
-    WIN_TILES = Vector2(16, 8)
-    WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
+    CELL_SIZE = 128 # pixels
+    WIN_TILES = Vector2(15, 8)
+    WIN_RES = WIN_TILES * CELL_SIZE
+
+    # WIN_RES = (16 * CELL_SIZE, 8 * CELL_SIZE) # 1024 x 512 pixels
     pg.init()
     game_map = get_current_map()
     window = pg.display.set_mode(WIN_RES)
     clock = pg.time.Clock()
-    player = Player(0.7, 1.4)
+    player = Player(0.7, 1.4, CELL_SIZE)
     camera_offset = Vector2(0,0)
     keys = {
         "w": KeyEvent(),
@@ -407,13 +418,13 @@ def main():
         dt = clock.get_time() / 1000
         player.update(keys, dt)
 
-        if player.box.pos.y > game_map.h - 1:
-            player.box.pos.y = game_map.h - 1
-            player.speed.y = 0
-            # TODO(gerick): deccelaration is not time bound (low frames = lots of slide)
-            player.speed.x += -player.speed.x/9
-            player.jumping = False
-            player.double_jumping = False
+        # if player.box.pos.y > game_map.h - 1:
+        #     player.box.pos.y = game_map.h - 1
+        #     player.speed.y = 0
+        #     # TODO(gerick): deccelaration is not time bound (low frames = lots of slide)
+        #     player.speed.x += -player.speed.x/9
+        #     player.jumping = False
+        #     player.double_jumping = False
         if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 3:
             camera_offset.x += 1
         if player.box.pos.x - camera_offset.x <= 3:
@@ -426,7 +437,7 @@ def main():
         window.fill("black")
         game_map.render(camera_offset, CELL_SIZE, WIN_TILES)
         draw_grid(window, CELL_SIZE)
-        player.render(camera_offset)
+        player.render(camera_offset, CELL_SIZE)
 
         pg.display.flip()
         clock.tick(50)
