@@ -31,8 +31,27 @@ class KeyEvent:
         self.pressed = False
 
 class Camara:
+    CELL_SIZE = 64
+    SCREEN_TILES = Vector2(15,8)
+    SCREEN_RES = SCREEN_TILES * CELL_SIZE
     def __init__(self):
-        pass
+        self.offset = Vector2() 
+
+__default_camara = None
+def get_camara():
+    global __default_camara
+    if __default_camara is None:
+        raise Exception("Camara not set. Set with `set_camara(Camara)`")
+    return __default_camara
+
+def set_camara(cam):
+    global __default_camara
+    if type(cam) != Camara:
+        raise Exception(f"set_camara expects camara type, recieved {type(cam)}")
+    if __default_camara is not None:
+        raise Exception("camara already set")
+    else:
+        __default_camara = cam
 
 class Map:
     TEXTURE_SIZE = 16
@@ -425,9 +444,9 @@ def main():
         #     player.speed.x += -player.speed.x/9
         #     player.jumping = False
         #     player.double_jumping = False
-        if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 3:
+        if player.box.pos.x - camera_offset.x >= WIN_TILES.x - 5:
             camera_offset.x += 1
-        if player.box.pos.x - camera_offset.x <= 3:
+        if player.box.pos.x - camera_offset.x <= 5:
             camera_offset.x -= 1
         camera_offset.x = pg.math.clamp(camera_offset.x, 0, game_map.w - WIN_TILES.x - 1)
         player.box.pos.x = pg.math.clamp(player.box.pos.x, 0, game_map.w-1)
