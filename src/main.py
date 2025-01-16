@@ -87,8 +87,8 @@ class Map:
         texture_to_render = pg.transform.scale_by(self.texture, cam.CELL_SIZE / self.TEXTURE_SIZE)
         # for x in range(int(cam.offset.x), int(cam.offset.x + cam.SCREEN_TILES.x)+1):
         #     for y in range(int(cam.offset.y), int(cam.offset.y + cam.SCREEN_TILES.y)+1):
-        for x in range(self.w):
-            for y in range(self.h):
+        for x in range(int(cam.offset.x), min(int(cam.offset.x + cam.w + 1), self.w)):
+            for y in range(int(cam.offset.y), min(int(cam.offset.y + cam.h + 1), self.h)):
                 if self[x,y] == "#":
                     # tile_loc = Vector2((x-cam.offset.x)*cam.CELL_SIZE, y*cam.CELL_SIZE)
                     tile_loc = (Vector2(x,y) - cam.offset) * cam.CELL_SIZE
