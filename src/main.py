@@ -36,6 +36,8 @@ class Camara:
     SCREEN_RES = SCREEN_TILES * CELL_SIZE
     def __init__(self):
         self.offset = Vector2() 
+        self.w = self.SCREEN_TILES.x
+        self.h = self.SCREEN_TILES.y
 
 __default_camara = None
 def get_camara():
@@ -69,6 +71,7 @@ class Map:
         # TODO(gerick): proper user error reporting
         with open(path_map, "r") as f:
             lines = f.readlines()
+            lines = list(map(lambda x: x.strip(), lines))
             if len(lines) == 0:
                 raise Exception(f"file: {path_map} is empty, can not load map")
             h = len(lines)
@@ -82,8 +85,10 @@ class Map:
     def render(self):
         cam = get_camara()
         texture_to_render = pg.transform.scale_by(self.texture, cam.CELL_SIZE / self.TEXTURE_SIZE)
-        for x in range(int(cam.offset.x), int(cam.offset.x + cam.SCREEN_TILES.x)):
-            for y in range(int(cam.offset.y), int(cam.offset.y + cam.SCREEN_TILES.y)):
+        # for x in range(int(cam.offset.x), int(cam.offset.x + cam.SCREEN_TILES.x)+1):
+        #     for y in range(int(cam.offset.y), int(cam.offset.y + cam.SCREEN_TILES.y)+1):
+        for x in range(self.w):
+            for y in range(self.h):
                 if self[x,y] == "#":
                     # tile_loc = Vector2((x-cam.offset.x)*cam.CELL_SIZE, y*cam.CELL_SIZE)
                     tile_loc = (Vector2(x,y) - cam.offset) * cam.CELL_SIZE
@@ -176,6 +181,9 @@ class Hitbox:
         self.pos.x = val - self.size.x / 2
 
     def get_collisions(self, vel, dir):
+        # ERROR(gerick): funcy bussniss going when leaving the confines of the map,
+        # only throws error when half the sprite leaves in the up and left directions
+        
         tile = lambda x: tuple(map(int, x))
         game_map = get_current_map()
 
@@ -368,9 +376,9 @@ class Player:
         if self.box.pos.x - self.camara.offset.x <= 5:
             x = abs(self.box.pos.x - self.camara.offset.x - 5)
             self.camara.offset.x -= x
-        self.camara.offset.x = pg.math.clamp(self.camara.offset.x, 0, get_current_map().w - self.camara.SCREEN_TILES.x - 1)
-        self.camara.offset.y = pg.math.clamp(self.camara.offset.y, 0, get_current_map().h - self.camara.SCREEN_TILES.y)
-        self.box.pos.x = pg.math.clamp(self.box.pos.x, 0, get_current_map().w-1)
+        self.camara.offset.x = pg.math.clamp(self.camara.offset.x, 0, get_current_map().w - self.camara.w)
+        self.camara.offset.y = pg.math.clamp(self.camara.offset.y, 0, get_current_map().h - self.camara.h)
+        self.box.pos.x = pg.math.clamp(self.box.pos.x, 0, get_current_map().w)
 
 
 
